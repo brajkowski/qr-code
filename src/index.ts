@@ -6,6 +6,11 @@ import { buildMatrix } from "./matrix.ts";
 
 export { QrCapacityError } from "./encoder.ts";
 export type { EccLevel } from "./config.ts";
+export { DEFAULT_ECC_LEVEL, DEFAULT_PNG_SIZE, DEFAULT_SVG_SIZE, QUIET_ZONE_MODULES } from "./config.ts";
+export { renderPng } from "./png.ts";
+export type { PngRenderOptions, RenderedRaster } from "./png.ts";
+export { renderSvg } from "./svg.ts";
+export type { SvgRenderOptions } from "./svg.ts";
 
 export interface QrSymbol {
   /** `modules[y][x]` — true is a dark module. Does not include the quiet zone. */
