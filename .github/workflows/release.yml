@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write # npm trusted publishing (OIDC)
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_ENABLED: ${{ vars.RELEASE_ENABLED }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+          registry-url: https://registry.npmjs.org
+      - run: yarn install --immutable
+      - run: yarn typecheck
+      - run: yarn test
+      - run: yarn build
+
+      # --- Real release: only when the repository variable RELEASE_ENABLED is "true". ---
+      # Authenticates to npm with trusted publishing (OIDC); needs npm >= 11.5.1, which the
+      # npm bundled with @semantic-release/npm provides. Provenance attestations are generated
+      # automatically by npm once the source repository is public (they are not supported for
+      # private repositories), so no `provenance` setting is needed here.
+      - name: Semantic release
+        if: ${{ env.RELEASE_ENABLED == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn semantic-release
+
+      # --- Rehearsal: everything except publishing. ---
+      # Only the analyzer and notes plugins run, because a dry run still executes
+      # verifyConditions and the npm check fails before npm credentials exist.
+      - name: Semantic release (dry run)
+        id: dry
+        if: ${{ env.RELEASE_ENABLED != 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REHEARSAL_DIR: ${{ runner.temp }}/rehearsal
+        run: >
+          yarn semantic-release --dry-run --plugins
+          @semantic-release/commit-analyzer
+          @semantic-release/release-notes-generator
+          ./scripts/semantic-release-output.cjs
+
+      - name: Rehearsal summary (no release)
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version == '' }}
+        run: |
+          {
+            echo "## Release rehearsal"
+            echo
+            echo "No releasable commits since the last release. Nothing was published."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stamp the version into this runner's copy only
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        env:
+          VERSION: ${{ steps.dry.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version
+
+      - name: Pack the artifact that would ship
+        id: pack
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack"
+          npm pack --pack-destination "$RUNNER_TEMP/pack"
+          tarball="$(ls "$RUNNER_TEMP"/pack/*.tgz)"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test the tarball
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: node scripts/smoke-test.mjs "$TARBALL"
+
+      - name: npm publish --dry-run
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: npm publish "$TARBALL" --dry-run --access public
+
+      - name: Collect rehearsal outputs
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/outputs"
+          cp "$TARBALL" "$RUNNER_TEMP/outputs/"
+          cp "$RUNNER_TEMP/rehearsal/release-notes.md" "$RUNNER_TEMP/outputs/"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        with:
+          name: release-rehearsal-${{ steps.dry.outputs.version }}
+          path: ${{ runner.temp }}/outputs/*
+          if-no-files-found: error
+
+      - name: Rehearsal summary
+        if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
+        env:
+          VERSION: ${{ steps.dry.outputs.version }}
+          TAG: ${{ steps.dry.outputs.tag }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          {
+            echo "## Release rehearsal"
+            echo
+            echo "Would release **$VERSION** (git tag \`$TAG\`). **Nothing was published.**"
+            echo
+            echo "### Release notes"
+            cat "$RUNNER_TEMP/rehearsal/release-notes.md"
+            echo
+            echo "### Tarball ($(du -h "$TARBALL" | cut -f1))"
+            echo '```'
+            tar -tzf "$TARBALL"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

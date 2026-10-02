@@ -1,15 +1,78 @@
 {
-  "name": "qr-code",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
+  "name": "@brajkowski/qr-code",
+  "version": "0.0.0-semantically-released",
   "description": "Zero-dependency QR code generator (PNG and SVG) for Node.",
+  "keywords": [
+    "qr",
+    "qrcode",
+    "qr-code",
+    "png",
+    "svg",
+    "generator",
+    "zero-dependency"
+  ],
+  "license": "MIT",
+  "author": "Brandon Rajkowski",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/brajkowski/qr-code.git"
   },
-  "author": "brajkowski",
+  "homepage": "https://github.com/brajkowski/qr-code#readme",
+  "bugs": "https://github.com/brajkowski/qr-code/issues",
+  "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": "./dist/cli.js",
+  "files": [
+    "dist",
+    "!dist/cli.d.ts",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo",
+    "NOTICE.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "yarn@4.18.1",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "fixtures": "node test/fixtures/generate.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:js": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js && esbuild src/cli.ts --bundle --platform=node --target=node22 --format=esm --banner:js=\"#!/usr/bin/env node\" --outfile=dist/cli.js",
+    "build:types": "tsc -p tsconfig.build.json && node scripts/fix-dts-extensions.mjs dist",
+    "build": "yarn clean && yarn build:js && yarn build:types",
+    "lint:package": "publint && attw --pack . --profile esm-only",
+    "test:smoke": "node scripts/smoke-test.mjs --pack",
+    "check:deps": "node -e \"const p=require('./package.json');for(const k of ['dependencies','peerDependencies','optionalDependencies'])if(p[k]&&Object.keys(p[k]).length){console.error(k+' must be empty');process.exit(1)}\"",
+    "prepack": "pinst --disable && yarn build",
+    "postpack": "pinst --enable",
+    "postinstall": "husky",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-lines=98 --test-coverage-branches=95 --test-coverage-functions=100 \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@nuintun/qrcode": "^5.0.3",
+    "@types/node": "^22",
+    "esbuild": "^0.28.2",
+    "husky": "^9.1.7",
+    "nayuki-qr-code-generator": "^1.8.0",
+    "pinst": "^3.0.0",
+    "publint": "^0.3.24",
+    "semantic-release": "^25.0.9",
+    "typescript": "^7.0.2"
   }
 }
