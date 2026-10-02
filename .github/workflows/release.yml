@@ -91,11 +91,13 @@ jobs:
           TARBALL: ${{ steps.pack.outputs.tarball }}
         run: node scripts/smoke-test.mjs "$TARBALL"
 
+      # npm refuses to publish a prerelease version (e.g. 1.0.0-beta.1 on the beta branch) without an
+      # explicit --tag. Nothing is published in a dry run, so the tag is arbitrary.
       - name: npm publish --dry-run
         if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
         env:
           TARBALL: ${{ steps.pack.outputs.tarball }}
-        run: npm publish "$TARBALL" --dry-run --access public
+        run: npm publish "$TARBALL" --dry-run --access public --tag rehearsal
 
       - name: Collect rehearsal outputs
         if: ${{ env.RELEASE_ENABLED != 'true' && steps.dry.outputs.version != '' }}
