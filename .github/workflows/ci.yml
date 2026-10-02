@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --immutable
+      - run: yarn check:deps
+      - run: yarn typecheck
+      - run: yarn test:coverage
+      - run: yarn build
+      - run: yarn lint:package
+      - name: Pack tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack"
+          npm pack --pack-destination "$RUNNER_TEMP/pack"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-tarball
+          path: ${{ runner.temp }}/pack/*.tgz
+          if-no-files-found: error
+
+  smoke:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Runtime floor (22), current LTS (24) and the current release line (26).
+        node: [22, 24, 26]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: package-tarball
+          path: ${{ runner.temp }}/pack
+      - name: Smoke test the packed tarball
+        run: node scripts/smoke-test.mjs "$RUNNER_TEMP"/pack/*.tgz
+
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --immutable
+      - name: Lint PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$PR_TITLE" | yarn commitlint
+
+  tests-accompany-changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Require tests alongside feat/fix source changes
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if ! printf '%s' "$PR_TITLE" | grep -Eq '^(feat|fix)(\([^)]*\))?!?:'; then
+            echo "PR type is not feat/fix; test change not required."
+            exit 0
+          fi
+          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          if ! printf '%s\n' "$changed" | grep -q '^src/'; then
+            echo "No src/ changes; test change not required."
+            exit 0
+          fi
+          if printf '%s\n' "$changed" | grep -q '^test/'; then
+            echo "src/ and test/ both changed."
+            exit 0
+          fi
+          echo "::error::feat/fix PRs that change src/ must also change a file under test/ (write the failing test first)."
+          exit 1
