@@ -35,6 +35,9 @@
   "bin": "./dist/cli.js",
   "files": [
     "dist",
+    "!dist/cli.d.ts",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo",
     "NOTICE.md"
   ],
   "sideEffects": false,
@@ -45,13 +48,21 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/**/*.test.ts\"",
-    "fixtures": "node test/fixtures/generate.mjs"
+    "fixtures": "node test/fixtures/generate.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:js": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js && esbuild src/cli.ts --bundle --platform=node --target=node22 --format=esm --banner:js=\"#!/usr/bin/env node\" --outfile=dist/cli.js",
+    "build:types": "tsc -p tsconfig.build.json && node scripts/fix-dts-extensions.mjs dist",
+    "build": "yarn clean && yarn build:js && yarn build:types",
+    "lint:package": "publint && attw --pack . --profile esm-only",
+    "test:smoke": "node scripts/smoke-test.mjs --pack"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@nuintun/qrcode": "^5.0.3",
     "@types/node": "^22",
     "esbuild": "^0.28.2",
     "nayuki-qr-code-generator": "^1.8.0",
+    "publint": "^0.3.24",
     "typescript": "^7.0.2"
   }
 }

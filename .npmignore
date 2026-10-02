@@ -1,0 +1,6 @@
+# Belt-and-braces: package.json "files" is the allowlist; this trims within it.
+*.tsbuildinfo
+*.map
+dist/**/*.test.*
+dist/cli.d.ts
+.DS_Store
