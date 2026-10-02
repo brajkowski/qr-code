@@ -13,7 +13,7 @@
  * through shell word-splitting, globbing, or quote/heredoc parsing at all.
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -410,9 +410,21 @@ export function run(argv: string[], env: NodeJS.ProcessEnv = process.env, cwd = 
   return { code: 0, stdout: lines.join("\n") + "\n", stderr: warningText };
 }
 
-/* c8 ignore start */
-const invokedDirectly =
-  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+/* node:coverage disable */
+/**
+ * npm and yarn install bins as symlinks, so `process.argv[1]` is the link, not
+ * the real file. Resolve it before comparing against this module's own path.
+ */
+function isInvokedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+const invokedDirectly = isInvokedDirectly();
 if (invokedDirectly) {
   const cliArgv = process.argv.slice(2);
   const argv =
@@ -424,4 +436,4 @@ if (invokedDirectly) {
   if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.code);
 }
-/* c8 ignore stop */
+/* node:coverage enable */
