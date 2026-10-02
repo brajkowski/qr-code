@@ -11,3 +11,10 @@ yarn-error.log
 !.env.example
 .claude/worktrees/
 .claude/settings.local.json
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
