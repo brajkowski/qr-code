@@ -97,10 +97,27 @@ Until the repository variable `RELEASE_ENABLED` is `true`, the release workflow 
 version, packs and smoke tests the tarball, runs `npm publish --dry-run`, and uploads the tarball as a workflow
 artifact. Nothing is published.
 
-Publishing uses npm trusted publishing (OIDC) with GitHub repo `brajkowski/qr-code` and workflow `release.yml`.
-npm may require the package to exist before a trusted publisher can be configured. If so, use a granular
-`NPM_TOKEN` secret (exposed to the release job as `NPM_TOKEN`) for the first release, then switch to OIDC and delete
-the token. Provenance attestations are generated automatically once the repository is public.
+### Channels
+
+| Branch | npm dist-tag | Versions |
+| --- | --- | --- |
+| `main` | `latest` | `1.0.0`, `1.1.0`, ... |
+| `beta` | `beta` | `1.0.0-beta.1`, `1.0.0-beta.2`, ... |
+
+Merging to `beta` publishes a prerelease that is only installed with `npm i @brajkowski/qr-code@beta`. It does not
+consume the stable version number or move `latest`. Merge `beta` into `main` to cut the stable release.
+
+### Publishing
+
+Publishing uses npm trusted publishing (OIDC) with GitHub repo `brajkowski/qr-code` and workflow `release.yml`. No
+npm token is stored anywhere; the release job gets a short-lived credential from GitHub's OIDC token. The trusted
+publisher allows `npm publish` and `npm dist-tag` (semantic-release runs both), not only staged publishing.
+Provenance attestations are generated automatically once the repository is public.
+
+npm only lets a trusted publisher be configured on a package that already exists. The package was bootstrapped
+with a manual, 2FA-authenticated publish of `0.0.0-placeholder.0` (`npm login --auth-type=web`, then
+`npm publish --access public --tag placeholder`), after which the trusted publisher was registered. The placeholder
+version is never chosen by semantic-release.
 
 ## Licensing of contributions
 
