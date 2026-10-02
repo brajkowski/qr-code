@@ -54,15 +54,25 @@
     "build:types": "tsc -p tsconfig.build.json && node scripts/fix-dts-extensions.mjs dist",
     "build": "yarn clean && yarn build:js && yarn build:types",
     "lint:package": "publint && attw --pack . --profile esm-only",
-    "test:smoke": "node scripts/smoke-test.mjs --pack"
+    "test:smoke": "node scripts/smoke-test.mjs --pack",
+    "check:deps": "node -e \"const p=require('./package.json');for(const k of ['dependencies','peerDependencies','optionalDependencies'])if(p[k]&&Object.keys(p[k]).length){console.error(k+' must be empty');process.exit(1)}\"",
+    "prepack": "pinst --disable && yarn build",
+    "postpack": "pinst --enable",
+    "postinstall": "husky",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-lines=98 --test-coverage-branches=95 --test-coverage-functions=100 \"test/**/*.test.ts\""
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "@nuintun/qrcode": "^5.0.3",
     "@types/node": "^22",
     "esbuild": "^0.28.2",
+    "husky": "^9.1.7",
     "nayuki-qr-code-generator": "^1.8.0",
+    "pinst": "^3.0.0",
     "publint": "^0.3.24",
+    "semantic-release": "^25.0.9",
     "typescript": "^7.0.2"
   }
 }
