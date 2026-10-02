@@ -1,7 +1,7 @@
 # Third-party notices
 
-This plugin's QR encoder has zero runtime dependencies — everything in
-`dist/qr.js` is original code in this repository. Two pieces of it are adapted
+This package's QR encoder has zero runtime dependencies — everything in
+the published `dist/` files is original code in this repository. Two pieces of it are adapted
 from, or checked against, third-party open-source work:
 
 ## Project Nayuki — QR Code generator library
