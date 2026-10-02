@@ -247,3 +247,11 @@ test("--json=1 is rejected — --json takes no value", () => {
   const r = run(["hi", "--json=1"], {}, "/tmp");
   assert.equal(r.code, 2);
 });
+
+test("--help names the command qr-code and has no plugin build references", () => {
+  const { stdout } = run(["--help"], {}, "/tmp");
+  assert.ok(stdout.startsWith("qr-code —"), "first line starts with the command name");
+  assert.match(stdout, /usage:\n\s+qr-code </);
+  assert.doesNotMatch(stdout, /yarn build/);
+  assert.doesNotMatch(stdout, /src\/config\.ts/);
+});

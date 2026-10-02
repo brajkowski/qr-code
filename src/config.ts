@@ -1,13 +1,9 @@
 /**
- * Editable defaults for the QR generator — the single source of truth.
+ * Built-in defaults for the QR generator — the single source of truth.
  *
- * These constants are compiled into `dist/qr.js` by esbuild. To change a
- * default: edit the value here, run `yarn build`, and commit both this file and
- * the regenerated `dist/qr.js` in the same commit (CI fails if they drift).
- *
- * For a per-invocation override without rebuilding, set the matching `QR_*`
- * environment variable (see README). Precedence is: CLI flag > env var > the
- * constant below.
+ * Each can be overridden per invocation with the matching `QR_*` environment
+ * variable (see README). Precedence is: CLI flag > env var > the constant
+ * below.
  */
 
 /** QR error-correction level. Higher levels survive more damage but need a larger symbol. */

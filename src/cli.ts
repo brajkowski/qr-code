@@ -1,16 +1,14 @@
 /**
- * Command-line entry point for the QR generator. Bundled by esbuild to
- * `dist/qr.js`, which the `/qr` slash command invokes.
+ * Command-line entry point for the QR generator, published as the `qr-code` bin.
  *
- * The slash command hands us the user's raw text over stdin rather than as
- * shell argv or interpolated into a command line — arbitrary text can contain
- * shell metacharacters (a URL with `?`/`&` is a glob and a background job to
- * a shell) or, if ever embedded inside shell quoting/heredoc syntax, can
- * contain a byte sequence that terminates that quoting early and injects
- * commands. `commands/qr.md` writes the text verbatim to a file with the
- * Write tool (never shell-parsed) and redirects it to our stdin; `--stdin-args`
- * reads that literal text and tokenizes it ourselves, so it never passes
- * through shell word-splitting, globbing, or quote/heredoc parsing at all.
+ * `--stdin-args` lets a caller pass untrusted text without any shell parsing:
+ * arbitrary text can contain shell metacharacters (a URL with `?`/`&` is a glob
+ * and a background job to a shell) or, if embedded inside shell quoting or
+ * heredoc syntax, a byte sequence that terminates that quoting early and
+ * injects commands. Instead the caller writes the text verbatim to a file (or
+ * pipe) and redirects it to our stdin; `--stdin-args` reads that literal text
+ * and tokenizes it ourselves, so it never passes through shell word-splitting,
+ * globbing, or quote/heredoc parsing at all.
  */
 
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
@@ -39,10 +37,10 @@ export interface CliResult {
 
 class UsageError extends Error {}
 
-const HELP = `qr — generate a QR code (PNG and/or SVG) from a URL or text string
+const HELP = `qr-code — generate a QR code (PNG and/or SVG) from a URL or text string
 
 usage:
-  qr <url-or-text> [options]
+  qr-code <url-or-text> [options]
 
 options:
   --data <string>     Text to encode (alternative to the positional argument).
@@ -65,8 +63,6 @@ options:
 
 environment overrides (CLI flags win over these, which win over built-in defaults):
   QR_PNG_SIZE  QR_SVG_SIZE  QR_ECC  QR_QUIET_ZONE  QR_OUTPUT_BASENAME
-
-defaults live in src/config.ts; edit there and run "yarn build" to change them.
 `;
 
 interface ParsedArgs {
