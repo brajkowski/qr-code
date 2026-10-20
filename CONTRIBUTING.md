@@ -12,9 +12,16 @@
 yarn install
 ```
 
-`yarn install` also runs `husky`, which installs a `commit-msg` hook that lints commit messages with commitlint.
-The `prepack`/`postpack` scripts use `pinst` to remove the `postinstall` script from the published package.
-CI is the real gate either way. If the hook gives you trouble, install it manually with `yarn husky`.
+Then install the `commit-msg` hook, which lints commit messages with commitlint, once per clone or worktree:
+
+```bash
+yarn husky
+```
+
+There is deliberately no `postinstall` or `prepare` script wiring this up: `npm publish` ships `package.json` scripts
+as they are, and an install-time script that needs a devDependency breaks `npm install` for consumers. Never add a
+`preinstall`, `install`, `postinstall` or `prepare` script; `yarn check:deps` and the smoke test fail on them. CI is
+the real gate either way.
 
 ## Scripts
 
@@ -26,7 +33,7 @@ CI is the real gate either way. If the hook gives you trouble, install it manual
 | `yarn build` | Bundles `dist/index.js` and `dist/cli.js` with esbuild and emits `.d.ts` files. |
 | `yarn lint:package` | `publint` and `attw` against the packed package. Run after `yarn build`. |
 | `yarn test:smoke` | Packs the package, installs the tarball into a temp project and exercises the library and the `qr-code` bin. |
-| `yarn check:deps` | Fails if runtime, peer or optional dependencies are non-empty. |
+| `yarn check:deps` | Fails if runtime, peer or optional dependencies are non-empty, or an install-time script is defined. |
 | `yarn fixtures` | Regenerates `test/fixtures/matrices.json`. |
 
 `dist/` is never committed.
